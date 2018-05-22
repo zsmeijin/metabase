@@ -288,9 +288,8 @@
 (defmacro with-metadata
   "Execute BODY with `java.sql.DatabaseMetaData` for DATABASE."
   [[binding _ database] & body]
-  `(with-open [^java.sql.Connection conn# (jdbc/get-connection (db->jdbc-connection-spec ~database))]
-     (let [~binding (.getMetaData conn#)]
-       ~@body)))
+  `(jdbc/with-db-metadata [~binding (db->jdbc-connection-spec ~database)]
+     ~@body))
 
 (defmacro ^:private with-resultset-open
   "This is like `with-open` but with JDBC ResultSet objects. Will execute `body` with a `jdbc/result-set-seq` bound
