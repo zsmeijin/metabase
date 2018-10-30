@@ -157,7 +157,7 @@
                       Card [{source-id :id} {:table_id      (data/id :venues)
                                              :collection_id   collection-id
                                              :dataset_query   source-query
-                                             :result_metadata (#'card.api/result-metadata-for-query source-query)}]
+                                             :result_metadata (with-rasta (#'card.api/result-metadata-for-query source-query))}]
                       Card [{card-id :id} {:table_id      (data/id :venues)
                                            :collection_id collection-id
                                            :dataset_query {:query    {:filter       [:> [:field-literal "PRICE" "type/Number"] 10]
@@ -192,7 +192,7 @@
                       Card [{source-id :id} {:table_id        nil
                                              :collection_id   collection-id
                                              :dataset_query   source-query
-                                             :result_metadata (#'card.api/result-metadata-for-query source-query)}]
+                                             :result_metadata (with-rasta (#'card.api/result-metadata-for-query source-query))}]
                       Card [{card-id :id} {:table_id      nil
                                            :collection_id collection-id
                                            :dataset_query {:query    {:filter       [:> [:field-literal "PRICE" "type/Number"] 10]
