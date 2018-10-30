@@ -5,6 +5,7 @@
   (:require [buddy.core.hash :as hash]
             [cheshire.core :as json]
             [clojure.tools.logging :as log]
+            [clojure.walk :as walk]
             [metabase.query-processor.interface :as i]
             [metabase.sync.analyze.query-results :as qr]
             [metabase.util :as u]
@@ -18,6 +19,15 @@
   (when metadata
     (db/update! 'Card card-id
       :result_metadata metadata)))
+
+(defn- serialize-metadata-for-hashing
+  [metadata]
+  (->> metadata
+       (walk/postwalk (fn [node]
+                        (if (integer? node)
+                          (double node)
+                          node)))
+       json/generate-string))
 
 (defn- metadata-checksum
   "Simple, checksum of the column results METADATA.
@@ -34,7 +44,11 @@
    becomes impossible to alter the metadata and produce a correct checksum at any rate."
   [metadata]
   (when metadata
-    (encryption/maybe-encrypt (codec/base64-encode (hash/md5 (json/generate-string metadata))))))
+    (-> metadata
+        serialize-metadata-for-hashing
+        hash/md5
+        codec/base64-encode
+        encryption/maybe-encrypt)))
 
 (defn valid-checksum?
   "Is the CHECKSUM the right one for this column METADATA?"
