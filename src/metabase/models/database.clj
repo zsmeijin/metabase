@@ -1,9 +1,11 @@
 (ns metabase.models.database
   (:require [cheshire.generate :refer [add-encoder encode-map]]
+            [clojure.core.async :as a]
             [clojure.tools.logging :as log]
             [metabase
              [db :as mdb]
              [driver :as driver]
+             [notification-center :as notifications]
              [util :as u]]
             [metabase.api.common :refer [*current-user*]]
             [metabase.driver.util :as driver.u]
@@ -51,15 +53,6 @@
     (catch Throwable e
       (log/error e (trs "Error scheduling tasks for DB")))))
 
-(defn- unschedule-tasks!
-  "Unschedule any currently pending sync operation tasks for `database`."
-  [database]
-  (try
-    (require 'metabase.task.sync-databases)
-    ((resolve 'metabase.task.sync-databases/unschedule-tasks-for-db!) database)
-    (catch Throwable e
-      (log/error e (trs "Error unscheduling tasks for DB.")))))
-
 (defn- post-insert [database]
   (u/prog1 database
     ;; add this database to the All Users permissions groups
@@ -72,12 +65,14 @@
   (cond-> database
     (driver/initialized? driver) (assoc :features (driver.u/features driver))))
 
+(defonce ^:private db-deleted-channel (a/chan))
+
 (defn- pre-delete [{id :id, driver :engine, :as database}]
-  (unschedule-tasks! database)
   (db/delete! 'Card        :database_id id)
   (db/delete! 'Permissions :object      [:like (str (perms/object-path id) "%")])
   (db/delete! 'Table       :db_id       id)
-  (driver/notify-database-updated driver database))
+  (driver/notify-database-updated driver database)
+  (notifications/post! notifications/DatabaseDeleted database))
 
 ;; TODO - this logic would make more sense in post-update if such a method existed
 (defn- pre-update

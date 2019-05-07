@@ -18,7 +18,9 @@
              [cron :as cron-util]
              [i18n :refer [trs]]]
             [schema.core :as s]
-            [toucan.db :as db])
+            [toucan.db :as db]
+            [metabase.notification-center :as notifications]
+            [clojure.core.async :as a])
   (:import metabase.models.database.DatabaseInstance
            [org.quartz CronTrigger JobDetail JobKey TriggerKey]))
 
@@ -78,8 +80,8 @@
 
 (s/defn ^:private trigger-key :- TriggerKey
   "Return an appropriate string key for the trigger for `task-info` and `database-or-id`."
-  [database :- DatabaseInstance, task-info :- TaskInfo]
-  (triggers/key (format "metabase.task.%s.trigger.%d" (name (:key task-info)) (u/get-id database))))
+  [database-or-id, task-info :- TaskInfo]
+  (triggers/key (format "metabase.task.%s.trigger.%d" (name (:key task-info)) (u/get-id database-or-id))))
 
 (s/defn ^:private cron-schedule :- cron-util/CronScheduleString
   "Fetch the appropriate cron schedule string for `database` and `task-info`."
@@ -108,17 +110,22 @@
 
 (s/defn ^:private delete-task!
   "Cancel a single sync task for `database-or-id` and `task-info`."
-  [database :- DatabaseInstance, task-info :- TaskInfo]
-  (let [trigger-key (trigger-key database task-info)]
+  [database-or-id, task-info :- TaskInfo]
+  (let [trigger-key (trigger-key database-or-id task-info)]
     (log/debug (u/format-color 'red "Unscheduling task for Database %d: trigger: %s"
-                               (u/get-id database) (.getName trigger-key)))
+                               (u/get-id database-or-id) (.getName trigger-key)))
     (task/delete-trigger! trigger-key)))
 
 (s/defn unschedule-tasks-for-db!
   "Cancel *all* scheduled sync and FieldValues caching tasks for `database-or-id`."
-  [database :- DatabaseInstance]
-  (delete-task! database sync-analyze-task-info)
-  (delete-task! database field-values-task-info))
+  [database-or-id]
+  (doseq [task [sync-analyze-task-info
+                field-values-task-info]]
+    (delete-task! database-or-id task)))
+
+(notifications/defobserver notifications/DatabaseDeleted
+  [{db-id :id}]
+  (unschedule-tasks-for-db! db-id))
 
 
 ;;; +----------------------------------------------------------------------------------------------------------------+

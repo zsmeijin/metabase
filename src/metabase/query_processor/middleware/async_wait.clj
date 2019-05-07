@@ -9,49 +9,55 @@
   will initially contain 15 permits. Each incoming request will asynchronously read from the channel until it acquires
   a permit, then put it back when it finishes."
   (:require [clojure.core.async :as a]
-            [metabase.async.semaphore-channel :as semaphore-channel]
+            [clojure.tools.logging :as log]
+            [metabase
+             [notification-center :as notifications]
+             [util :as u]]
             [metabase.models.setting :refer [defsetting]]
-            [metabase.util :as u]
-            [metabase.util.i18n :refer [trs]]))
+            [metabase.util.i18n :refer [trs]])
+  (:import [java.util.concurrent Executors ExecutorService]))
 
 (defsetting max-simultaneous-queries-per-db
   (trs "Maximum number of simultaneous queries to allow per connected Database.")
   :type    :integer
   :default 15)
 
-(defonce ^:private db-semaphore-channels (atom {}))
+(defonce ^:private db-thread-pools (atom {}))
 
-(defn- fetch-db-semaphore-channel
-  "Fetch the counting semaphore channel for a Database, creating it if not already created."
-  [database-or-id]
+(defonce ^:private db-thread-pool-lock (Object.))
+
+(defn- db-thread-pool ^ExecutorService [database-or-id]
   (let [id (u/get-id database-or-id)]
     (or
-     ;; channel already exists
-     (@db-semaphore-channels id)
-     ;; channel does not exist, Create a channel and stick it in the atom
-     (let [ch     (semaphore-channel/semaphore-channel (max-simultaneous-queries-per-db))
-           new-ch ((swap! db-semaphore-channels update id #(or % ch)) id)]
-       ;; ok, if the value swapped into the atom was a different channel (another thread beat us to it) then close our
-       ;; newly created channel
-       (when-not (= ch new-ch)
-         (a/close! ch))
-       ;; return the newly created channel
-       new-ch))))
+     (@db-thread-pools id)
+     (locking db-thread-pool-lock
+       (or
+        (@db-thread-pools id)
+        (log/debug (trs "Creating new query thread pool for Database {0}" id))
+        (let [new-pool (Executors/newFixedThreadPool (max-simultaneous-queries-per-db))]
+          (swap! db-thread-pools assoc id new-pool)
+          new-pool))))))
+
+(defn destroy-thread-pool! [database-or-id]
+  (let [id (u/get-id database-or-id)]
+    (locking db-thread-pool-lock
+      (let [[{^ExecutorService thread-pool id}] (swap-vals! db-thread-pools dissoc id)]
+        (when thread-pool
+          (log/debug (trs "Destroying query thread pool for Database {0}" id))
+          (.shutdownNow thread-pool))))))
+
+(notifications/defobserver notifications/DatabaseDeleted
+  [{db-id :id}]
+  (destroy-thread-pool! db-id))
 
 (defn wait-for-permit
   "Middleware that throttles the number of concurrent queries for each connected database, parking the thread until a
   permit becomes available."
   [qp]
   (fn [{database-id :database, :as query} respond raise canceled-chan]
-    (let [semaphore-chan (fetch-db-semaphore-channel database-id)
-          output-chan    (semaphore-channel/do-after-receiving-permit semaphore-chan
-                           qp query respond raise canceled-chan)]
-      (a/go
-        ;; result might be nil if `output-chan` gets prematurely closed. If there's no result there's no need to
-        ;; finish the `respond` post-processing
-        (some-> (a/<! output-chan) respond)
-        (a/close! output-chan))
+    (let [futur (.submit (db-thread-pool database-id) ^Runnable #(qp query respond raise canceled-chan))]
       (a/go
         (when (a/<! canceled-chan)
-          (a/close! output-chan)))
-      nil)))
+          (log/debug (trs "Request canceled, canceling pending query"))
+          (future-cancel futur))))
+    nil))

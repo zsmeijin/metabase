@@ -2,6 +2,8 @@
                             ;; Specify which arg is the docstring for certain macros
                             ;; (Add more as needed)
                             (put 'defendpoint 'clojure-doc-string-elt 3)
+                            (put 'defnotification 'clojure-doc-string-elt 2)
+                            (put 'notifications/defnotification 'clojure-doc-string-elt 2)
                             (put 'defendpoint-async 'clojure-doc-string-elt 3)
                             (put 'api/defendpoint 'clojure-doc-string-elt 3)
                             (put 'api/defendpoint-async 'clojure-doc-string-elt 3)
