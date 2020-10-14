@@ -67,7 +67,6 @@
     "react-textarea-autosize": "^5.2.1",
     "react-transition-group": "1",
     "react-virtualized": "^9.7.2",
-    "read-excel-file": "^4.0.7",
     "recompose": "^0.26.0",
     "redux": "^3.5.2",
     "redux-actions": "^2.0.1",
@@ -117,7 +116,7 @@
     "color-diff": "^1.1.0",
     "concurrently": "^3.1.0",
     "css-loader": "^0.28.7",
-    "cypress": "3.8.2",
+    "cypress": "^5.3.0",
     "documentation": "^4.0.0-rc.1",
     "enzyme": "^3.8.0",
     "enzyme-2": "npm:enzyme@2",
@@ -169,7 +168,8 @@
     "webpack-dev-server": "^2.9.1",
     "webpack-notifier": "^1.8.0",
     "webpack-postcss-tools": "^1.1.2",
-    "xhr-mock": "^2.4.1"
+    "xhr-mock": "^2.4.1",
+    "xlsx": "^0.16.8"
   },
   "scripts": {
     "dev": "concurrently --kill-others -p name -n 'backend,frontend,docs' -c 'blue,green,yellow' 'lein run' 'yarn build-hot' 'yarn docs'",
@@ -215,6 +215,6 @@
     ]
   },
   "resolutions": {
-    "cypress": "3.8.2"
+    "cypress": "5.3.0"
   }
 }
