@@ -307,7 +307,7 @@ jobs:
       - run:
           name: Save list of files that have changes relative to the parent branch
           command: >
-            parent_branch=`git log --decorate --simplify-by-decoration --oneline | grep -v "HEAD" | head -n 1 | sed -r 's/^\w+\s\(origin\/([^,)]+).+$/\1/'`
+            parent_branch=`git log --decorate --simplify-by-decoration --oneline | grep -v "HEAD" | head -n 1 | sed -r 's/^\w+\s\(origin\/([^,)]+).+$/\1/'`;
             git diff --name-only "$parent_branch" > files_with_changes.txt
       - run:
           name: Remove .git directory (not needed for tests)
