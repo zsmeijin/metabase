@@ -28,6 +28,10 @@
   "Used as color for 'We were unable to display this Pulse' messages."
   "#F9D45C")
 
+(def ^:const color-red
+  "Used as secondary color in charts"
+  "#EF8C8C")
+
 (def ^:const color-error
   "Color for error messages."
   "#EF8C8C")

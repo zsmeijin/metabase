@@ -22,6 +22,8 @@
     :padding-top     :20px
     :padding-bottom  :5px}))
 
+(def max-bar-width 106)
+
 (defn- bar-td-style []
   (merge
    (style/font-style)
@@ -31,7 +33,7 @@
     :color          style/color-text-dark
     :border-bottom  (str "1px solid " style/color-body-row-border)
     :height         :36px
-    :width          :106px
+    :width          (str max-bar-width "px")
     :padding-right  :0.5em
     :padding-left   :0.5em}))
 
@@ -40,6 +42,28 @@
 
 (defn- bar-td-style-numeric []
   (merge (style/font-style) (bar-td-style) {:text-align :right}))
+
+(defn- render-bar-component
+  ([color positive? width]
+   (render-bar-component color positive? width 0))
+  ([color positive? width offset]
+   [:div
+    {:style (style/style
+             (merge
+              {:width width
+               :background-color color
+               :max-height :10px
+               :height :10px
+               :margin-left offset
+               :margin-top :3px}
+              (if positive?
+                {:border-radius "0px 2px 2px 0px"}
+                {:border-radius "2px 0px 0px 2px"
+                 :right :0px
+                 :float :right
+                 :padding-right :0px
+                 :margin-right :0px})))}
+    "&#160;"]))
 
 (defn- heading-style-for-type
   [cell]
@@ -53,6 +77,12 @@
     (bar-td-style-numeric)
     (bar-td-style)))
 
+(defn- normalized-score->pixels
+  [score]
+  (str
+   (int (* (/ score 100.0) max-bar-width))
+   "px"))
+
 (defn- render-table-head [{:keys [bar-width row]}]
   [:thead
    [:tr
@@ -62,13 +92,31 @@
     (when bar-width
       [:th {:style (style/style (bar-td-style) (bar-th-style) {:width (str bar-width "%")})}])]])
 
+(defn render-bar
+  [bar-width normalized-zero]
+  (if (< bar-width normalized-zero)
+    (list
+     [:td {:style (style/style (bar-td-style) {:width :99% :border-right "1px solid black" :padding-right 0})}
+      (render-bar-component style/color-red
+                            false
+                            (normalized-score->pixels (- normalized-zero bar-width))
+                            (normalized-score->pixels bar-width))]
+     [:td {:style (style/style (bar-td-style) {:width :99%})}])
+    (list
+     (when-not (zero? normalized-zero)
+       [:td {:style (style/style (bar-td-style) {:width :99% :border-right "1px solid black"})}])
+     [:td {:style (style/style (bar-td-style) {:width :99% :padding-left 0})}
+      (render-bar-component (style/primary-color)
+                            true
+                            (normalized-score->pixels (- bar-width normalized-zero)))])))
+
 (defn- render-table-body
   "Render Hiccup `<tbody>` of a `<table>`.
 
   `get-background-color` is a function that returned the background color for the current cell; it is invoked like
 
     (get-background-color cell-value column-name row-index)"
-  [get-background-color column-names rows]
+  [get-background-color normalized-zero column-names rows]
   [:tbody
    (for [[row-idx {:keys [row bar-width]}] (m/indexed rows)]
      [:tr {:style (style/style {:color style/color-gray-3})}
@@ -79,23 +127,16 @@
                       (when (and bar-width (= col-idx 1))
                         {:font-weight 700}))}
          (h cell)])
-      (when bar-width
-        [:td {:style (style/style (bar-td-style) {:width :99%})}
-         [:div {:style (style/style {:background-color (style/primary-color)
-                                     :max-height       :10px
-                                     :height           :10px
-                                     :border-radius    :2px
-                                     :width            (str (max bar-width 0) "%")})}
-          "&#160;"]])])])
+      (some-> bar-width (render-bar normalized-zero))])])
 
 (defn render-table
   "This function returns the HTML data structure for the pulse table. `color-selector` is a function that returns the
   background color for a given cell. `column-names` is different from the header in `header+rows` as the header is the
   display_name (i.e. human friendly. `header+rows` includes the text contents of the table we're about ready to
   create."
-  [^JSObject color-selector, column-names [header & rows]]
+  [^JSObject color-selector, normalized-zero column-names [header & rows]]
   [:table {:style (style/style {:max-width (str "100%"), :white-space :nowrap, :padding-bottom :8px, :border-collapse :collapse})
            :cellpadding "0"
            :cellspacing "0"}
    (render-table-head header)
-   (render-table-body (partial color/get-background-color color-selector) column-names rows)])
+   (render-table-body (partial color/get-background-color color-selector) normalized-zero column-names rows)])
