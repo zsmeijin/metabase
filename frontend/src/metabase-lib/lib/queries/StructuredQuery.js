@@ -97,6 +97,7 @@ export default class StructuredQuery extends AtomicQuery {
     super(question, datasetQuery);
 
     this._structuredDatasetQuery = (datasetQuery: StructuredDatasetQuery);
+    this._fieldsEmpty = true;
   }
 
   /* Query superclass methods */
@@ -1084,6 +1085,14 @@ export default class StructuredQuery extends AtomicQuery {
 
   setFields(fields) {
     return this._updateQuery(q => ({ ...q, fields }));
+  }
+
+  setFieldsEmpty(isEmpty) {
+    this._fieldsEmpty = isEmpty;
+  }
+
+  fieldsEmpty(){
+    return this._fieldsEmpty;
   }
 
   /**

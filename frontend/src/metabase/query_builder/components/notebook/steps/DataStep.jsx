@@ -53,19 +53,26 @@ import FieldsPicker from "./FieldsPicker";
 
 const DataFieldsPicker = ({ className, query, updateQuery }) => {
   const dimensions = query.tableDimensions();
-  const selectedDimensions = query.columnDimensions();
+  let selectedDimensions = query.columnDimensions();
   const selected = new Set(selectedDimensions.map(d => d.key()));
   const fields = query.fields();
+  if (query.fieldsEmpty()){
+    selectedDimensions = [];
+  }
   return (
     <FieldsPicker
       className={className}
       dimensions={dimensions}
       selectedDimensions={selectedDimensions}
-      isAll={selected.length === dimensions.length}
-      isNone={selected.length === 0}
-      onSelectAll={() => query.clearFields().update(updateQuery)}
-      onSelectNone={() => query.clearFields().update(updateQuery)}
+      isAll={!query.fieldsEmpty() && (!fields || fields.length === 0)}
+      isNone={query.fieldsEmpty()}
+      onSelectAll={() => {
+        query.setFieldsEmpty(false);
+        query.clearFields().update(updateQuery);
+      }}
+      onSelectNone={() => query.setFieldsEmpty(true)}
       onToggleDimension={(dimension, enable) => {
+        query.setFieldsEmpty(false);
         query
           .setFields(
             dimensions
