@@ -61,8 +61,10 @@ const DataFieldsPicker = ({ className, query, updateQuery }) => {
       className={className}
       dimensions={dimensions}
       selectedDimensions={selectedDimensions}
-      isAll={!fields || fields.length === 0}
+      isAll={selected.length === dimensions.length}
+      isNone={selected.length === 0}
       onSelectAll={() => query.clearFields().update(updateQuery)}
+      onSelectNone={() => query.clearFields().update(updateQuery)}
       onToggleDimension={(dimension, enable) => {
         query
           .setFields(
