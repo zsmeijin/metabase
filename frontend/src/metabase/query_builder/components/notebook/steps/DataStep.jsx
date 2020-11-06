@@ -51,33 +51,49 @@ export default connect(state => ({ databases: getDatabasesList(state) }))(
 
 import FieldsPicker from "./FieldsPicker";
 
-const DataFieldsPicker = ({ className, query, updateQuery }) => {
-  const dimensions = query.tableDimensions();
-  const selectedDimensions = query.columnDimensions();
-  const selected = new Set(selectedDimensions.map(d => d.key()));
-  const fields = query.fields();
-  return (
-    <FieldsPicker
-      className={className}
-      dimensions={dimensions}
-      selectedDimensions={selectedDimensions}
-      isAll={!fields || fields.length === 0}
-      onSelectAll={() => query.clearFields().update(updateQuery)}
-      onToggleDimension={(dimension, enable) => {
-        query
-          .setFields(
-            dimensions
-              .filter(d => {
-                if (d === dimension) {
-                  return !selected.has(d.key());
-                } else {
-                  return selected.has(d.key());
-                }
-              })
-              .map(d => d.mbql()),
-          )
-          .update(updateQuery);
-      }}
-    />
-  );
-};
+class DataFieldsPicker extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {empty: true};
+  }
+
+  render() {
+    const dimensions = this.props.query.tableDimensions();
+    const selectedDimensions = this.props.query.columnDimensions();
+    const selected = new Set(selectedDimensions.map(d => d.key()));
+    const fields = this.props.query.fields();
+
+    return (
+      <FieldsPicker
+        className={this.props.className}
+        dimensions={dimensions}
+        selectedDimensions={this.state.empty? [] : selectedDimensions}
+        isAll={!this.state.empty && (!fields || fields.length === 0)}
+        isNone={this.state.empty}
+        onSelectAll={() => {
+          this.setState(() => ({empty: false}));
+          this.props.query.clearFields().update(this.props.updateQuery);
+        }}
+        onSelectNone={() => this.setState(() => ({empty: true}))}
+        onToggleDimension={(dimension, enable) => {
+          this.props.query
+            .setFields(
+              dimensions
+                .filter(d => {
+                  if (d === dimension) {
+                    return this.state.empty? selected.has(d.key()) : !selected.has(d.key());
+                  } else {
+                    return this.state.empty? !selected.has(d.key()) : selected.has(d.key());
+                  }
+                })
+                .map(d => d.mbql()),
+            )
+            .update(this.props.updateQuery);
+          if(this.state.empty){
+            this.setState(() => ({empty: false}));
+          }
+        }}
+      />
+    );
+  }
+}
