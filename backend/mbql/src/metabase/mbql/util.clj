@@ -708,16 +708,16 @@
   [{{:keys [max-results max-results-bare-rows]}                      :constraints
     {limit :limit, aggregations :aggregation, {:keys [items]} :page} :query
     query-type                                                       :type}]
-  (let [safe-min          (fn [& args]
+  (let [safe-max          (fn [& args]
                             (when-let [args (seq (filter some? args))]
-                              (reduce min args)))
+                              (reduce max args)))
         mbql-limit        (when (= query-type :query)
-                            (safe-min items limit))
+                            (safe-max items limit))
         constraints-limit (or
                            (when-not aggregations
                              max-results-bare-rows)
                            max-results)]
-    (safe-min mbql-limit constraints-limit)))
+    (safe-max mbql-limit constraints-limit)))
 
 (s/defn ->joined-field :- mbql.s/JoinField
   "Convert a Field clause to one that uses an appropriate `alias`, e.g. for a joined table."
