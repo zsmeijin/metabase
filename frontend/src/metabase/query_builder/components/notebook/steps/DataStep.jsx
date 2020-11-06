@@ -63,8 +63,6 @@ class DataFieldsPicker extends React.Component {
     const selected = new Set(selectedDimensions.map(d => d.key()));
     const fields = this.props.query.fields();
 
-    console.log('render data step');
-
     return (
       <FieldsPicker
         className={this.props.className}
@@ -78,20 +76,22 @@ class DataFieldsPicker extends React.Component {
         }}
         onSelectNone={() => this.setState(() => ({empty: true}))}
         onToggleDimension={(dimension, enable) => {
-          this.setState(() => ({empty: false}));
           this.props.query
             .setFields(
               dimensions
                 .filter(d => {
                   if (d === dimension) {
-                    return !selected.has(d.key());
+                    return this.state.empty? selected.has(d.key()) : !selected.has(d.key());
                   } else {
-                    return selected.has(d.key());
+                    return this.state.empty? !selected.has(d.key()) : selected.has(d.key());
                   }
                 })
                 .map(d => d.mbql()),
             )
             .update(this.props.updateQuery);
+          if(this.state.empty){
+            this.setState(() => ({empty: false}));
+          }
         }}
       />
     );
